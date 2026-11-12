@@ -1,0 +1,75 @@
+name: Release
+
+# Push a version tag to publish a release:  git tag v0.2.0 && git push origin v0.2.0
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      # Signing + notarization turn on automatically once these secrets exist.
+      HAS_SIGNING: ${{ secrets.MACOS_CERTIFICATE != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Import Developer ID certificate
+        if: env.HAS_SIGNING == 'true'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import "$RUNNER_TEMP/cert.p12" -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          IDENTITY="$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)"/\1/')"
+          echo "SIGN_ID=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build disk image
+        run: make dmg UNIVERSAL=1 VERSION="${GITHUB_REF_NAME#v}" SIGN_ID="${SIGN_ID:--}"
+
+      - name: Notarize
+        if: env.HAS_SIGNING == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          DMG="build/Linkhop-${GITHUB_REF_NAME#v}.dmg"
+          xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple "$DMG"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DMG="build/Linkhop-$VERSION.dmg"
+          (cd build && shasum -a 256 "Linkhop-$VERSION.dmg" > "Linkhop-$VERSION.dmg.sha256")
+
+          {
+            echo "### Install"
+            echo
+            echo "Download **Linkhop-$VERSION.dmg**, open it, and drag Linkhop into Applications. Then open Linkhop and click **Make Linkhop Default**."
+            if [ "$HAS_SIGNING" != "true" ]; then
+              echo
+              echo "> [!NOTE]"
+              echo "> This build isn't notarized by Apple, so macOS blocks it the first time you open it. Go to **System Settings → Privacy & Security** and click **Open Anyway**, or run \`xattr -dr com.apple.quarantine /Applications/Linkhop.app\`."
+            fi
+          } > "$RUNNER_TEMP/notes.md"
+
+          gh release create "$GITHUB_REF_NAME" "$DMG" "$DMG.sha256" \
+            --title "Linkhop $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --generate-notes \
+            --verify-tag
