@@ -66,19 +66,42 @@ struct PickerView: View {
         return Button {
             choose(i, NSEvent.modifierFlags.contains(.command))
         } label: {
-            Image(nsImage: t.icon)
-                .resizable()
-                .frame(width: 32, height: 32)
-                .frame(width: Self.cell, height: Self.cell)
-                .background(
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(i == model.selected ? Color.accentColor.opacity(0.28) : .clear)
-                )
-                .contentShape(Rectangle())
+            VStack(spacing: 3) {
+                Image(nsImage: t.icon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                keycap(i)
+            }
+            .padding(.top, 4)
+            .padding(.bottom, 3)
+            .frame(width: Self.cell)
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(i == model.selected ? Color.accentColor.opacity(0.28) : .clear)
+            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(i < 9 ? "\(i + 1)  \(t.name)" : t.name)
+        .help(t.name)
         .onHover { if $0 { model.selected = i } }
+    }
+
+    /// Small keycap showing the number key bound to this app (blank past 9, to keep rows aligned).
+    private func keycap(_ i: Int) -> some View {
+        let selected = i == model.selected
+        return Text(i < 9 ? "\(i + 1)" : " ")
+            .font(.system(size: 9, weight: .semibold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(selected ? Color.primary : Color.secondary)
+            .frame(width: 14, height: 13)
+            .background(
+                RoundedRectangle(cornerRadius: 3.5)
+                    .fill(Color.primary.opacity(i < 9 ? (selected ? 0.16 : 0.08) : 0))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 3.5)
+                    .strokeBorder(Color.primary.opacity(i < 9 ? 0.18 : 0), lineWidth: 0.5)
+            )
     }
 }
 

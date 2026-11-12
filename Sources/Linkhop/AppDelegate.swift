@@ -135,7 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: "Linkhop")
+        item.button?.image = MenuBarIcon.image
 
         let menu = NSMenu()
         menu.delegate = self
