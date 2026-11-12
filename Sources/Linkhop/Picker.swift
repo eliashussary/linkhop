@@ -88,7 +88,7 @@ private final class KeyPanel: NSPanel {
 
 /// A floating chooser shown at the mouse. Calls `onChoose` at most once, then `onDone` exactly once.
 @MainActor
-final class Picker: NSObject, NSWindowDelegate {
+final class LinkPicker: NSObject, NSWindowDelegate {
     private var panel: KeyPanel?
     private var monitor: Any?
     private var model: PickerModel?

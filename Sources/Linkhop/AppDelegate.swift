@@ -9,15 +9,28 @@ private struct Pending {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
-    private let picker = Picker()
+    private let picker = LinkPicker()
     private var queue: [Pending] = []
     private var picking = false
     private let defaultItem = NSMenuItem(title: "Make Default Browser", action: #selector(makeDefault), keyEquivalent: "")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         ConfigStore.ensureExists()
+        setupMainMenu()
         setupStatusItem()
-        if CommandLine.arguments.contains("--make-default") { makeDefault() }
+        let args = CommandLine.arguments
+        if args.contains("--make-default") { makeDefault() }
+        // Opened from Finder/Launchpad/Spotlight (not to handle a link): show settings.
+        let launchedByUser = notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool ?? false
+        if launchedByUser && !args.contains("--background") && !args.contains("--make-default") {
+            SettingsWindow.shared.show()
+        }
+    }
+
+    /// Opening Linkhop again while it's running shows settings.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        SettingsWindow.shared.show()
+        return false
     }
 
     // MARK: Links
@@ -88,7 +101,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return NSRunningApplication(processIdentifier: pid)?.bundleIdentifier
     }
 
-    // MARK: Menu bar
+    // MARK: Menus
+
+    /// Needed for ⌘Q/⌘W/⌘, and copy/paste in text fields while the settings window is open.
+    private func setupMainMenu() {
+        let main = NSMenu()
+
+        let app = NSMenu()
+        app.addItem(withTitle: "About Linkhop", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(.separator())
+        app.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
+        app.addItem(.separator())
+        app.addItem(withTitle: "Quit Linkhop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        main.addItem(withTitle: "Linkhop", action: nil, keyEquivalent: "").submenu = app
+
+        let edit = NSMenu(title: "Edit")
+        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        main.addItem(withTitle: "Edit", action: nil, keyEquivalent: "").submenu = edit
+
+        let window = NSMenu(title: "Window")
+        window.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        window.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        main.addItem(withTitle: "Window", action: nil, keyEquivalent: "").submenu = window
+
+        NSApp.mainMenu = main
+    }
 
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -102,8 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         defaultItem.target = self
         menu.addItem(defaultItem)
-        menu.addItem(withTitle: "Edit Rules…", action: #selector(editConfig), keyEquivalent: ",").target = self
-        menu.addItem(withTitle: "Show Log", action: #selector(showLog), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Linkhop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
@@ -111,31 +153,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        let isDefault = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "https://example.com")!)?
-            .standardizedFileURL == Bundle.main.bundleURL.standardizedFileURL
+        let isDefault = DefaultBrowser.isLinkhop
         defaultItem.state = isDefault ? .on : .off
         defaultItem.title = isDefault ? "Default Browser" : "Make Default Browser"
     }
 
     @objc private func makeDefault() {
-        let me = Bundle.main.bundleURL
-        // macOS shows its own confirmation dialog for this.
-        NSWorkspace.shared.setDefaultApplication(at: me, toOpenURLsWithScheme: "http") { error in
-            Log.write("set default http: \(error?.localizedDescription ?? "ok")")
-            NSWorkspace.shared.setDefaultApplication(at: me, toOpenURLsWithScheme: "https") { error in
-                Log.write("set default https: \(error?.localizedDescription ?? "ok")")
-            }
-        }
+        DefaultBrowser.request()
     }
 
-    @objc private func editConfig() {
-        ConfigStore.ensureExists()
-        NSWorkspace.shared.open([ConfigStore.url],
-                                withApplicationAt: URL(fileURLWithPath: "/System/Applications/TextEdit.app"),
-                                configuration: NSWorkspace.OpenConfiguration())
-    }
-
-    @objc private func showLog() {
-        NSWorkspace.shared.open(Log.url)
+    @objc private func showSettings() {
+        SettingsWindow.shared.show()
     }
 }
