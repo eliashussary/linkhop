@@ -11,6 +11,7 @@ final class SettingsModel: ObservableObject {
     @Published var isDefault = false
     @Published var installed: [AppTarget] = []
     @Published var running: [AppTarget] = []
+    @Published var tab = "general"
     @Published var ruleSelection: Int?
     @Published var editor: RuleEditorModel?
     private var targetCache: [String: AppTarget?] = [:]
@@ -184,10 +185,10 @@ struct SettingsView: View {
                 .padding(12)
                 .background(.yellow.opacity(0.12))
             }
-            TabView {
-                GeneralTab(model: model).tabItem { Label("General", systemImage: "gearshape") }
-                BrowsersTab(model: model).tabItem { Label("Browsers", systemImage: "square.grid.2x2") }
-                RulesTab(model: model).tabItem { Label("Rules", systemImage: "arrow.triangle.branch") }
+            TabView(selection: $model.tab) {
+                GeneralTab(model: model).tabItem { Label("General", systemImage: "gearshape") }.tag("general")
+                BrowsersTab(model: model).tabItem { Label("Browsers", systemImage: "square.grid.2x2") }.tag("browsers")
+                RulesTab(model: model).tabItem { Label("Rules", systemImage: "arrow.triangle.branch") }.tag("rules")
             }
             .padding(16)
             .disabled(model.loadError != nil)
@@ -196,7 +197,7 @@ struct SettingsView: View {
     }
 }
 
-private struct GeneralTab: View {
+struct GeneralTab: View {
     @ObservedObject var model: SettingsModel
 
     var body: some View {
@@ -258,7 +259,7 @@ private struct GeneralTab: View {
     }
 }
 
-private struct BrowsersTab: View {
+struct BrowsersTab: View {
     @ObservedObject var model: SettingsModel
 
     var body: some View {
@@ -287,7 +288,7 @@ private struct BrowsersTab: View {
     }
 }
 
-private struct RulesTab: View {
+struct RulesTab: View {
     @ObservedObject var model: SettingsModel
 
     private var rules: [Rule] { model.config.rules ?? [] }

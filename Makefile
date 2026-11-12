@@ -16,7 +16,7 @@ SWIFT_BUILD := swift build -c release $(ARCH_FLAGS)
 SIGN_ID ?= -
 SIGN_FLAGS := $(if $(filter -,$(SIGN_ID)),,--options runtime --timestamp)
 
-.PHONY: build bundle install default dmg icon clean
+.PHONY: build bundle install default dmg icon screenshots clean
 
 build:
 	$(SWIFT_BUILD)
@@ -61,6 +61,12 @@ icon:
 	iconutil -c icns build/AppIcon.iconset -o Resources/AppIcon.icns
 	mkdir -p .github/assets
 	cp build/AppIcon.iconset/icon_128x128@2x.png .github/assets/icon.png
+
+# Render the README images from the real picker and settings views (see scripts/screenshots).
+screenshots:
+	mkdir -p build
+	swiftc -swift-version 5 -o build/screenshots $(filter-out Sources/Linkhop/main.swift Sources/Linkhop/AppDelegate.swift,$(wildcard Sources/Linkhop/*.swift)) scripts/screenshots/main.swift
+	./build/screenshots .github/assets
 
 clean:
 	rm -rf .build build

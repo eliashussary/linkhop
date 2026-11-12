@@ -13,6 +13,13 @@ A tiny, native macOS link router. Set Linkhop as your default browser, and each 
 ![Swift](https://img.shields.io/badge/Swift-native-F05138?logo=swift&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
+<br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/hero-dark.jpg">
+  <img src=".github/assets/hero-light.jpg" alt="Clicking a link in a chat app opens Linkhop's picker at the cursor, showing seven browsers with number keys 1 to 7" width="880">
+</picture>
+
 </div>
 
 ---
@@ -45,6 +52,13 @@ To uninstall, choose another default browser in **System Settings → Desktop & 
 
 ### Picker
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/picker-dark.jpg">
+  <img src=".github/assets/picker-light.jpg" alt="The picker: browser icons with number keycaps underneath, and the site and selected browser below" width="600">
+</picture>
+
+Each browser's number key is shown on the keycap underneath it.
+
 | Key | Action |
 | --- | --- |
 | `1`–`9`, click, `↩` | Open in that app |
@@ -55,6 +69,11 @@ To uninstall, choose another default browser in **System Settings → Desktop & 
 Hold `⌥` while clicking a link to always get the picker, skipping your rules.
 
 ### Settings
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/settings-dark.jpg">
+  <img src=".github/assets/settings-light.jpg" alt="Linkhop Settings: the Browsers tab with checkboxes for each browser, and the Rules tab routing github.com, linear.app, notion.so and others to specific apps" width="880">
+</picture>
 
 Open Linkhop from Applications or Spotlight, or choose **Settings…** from the menu bar icon.
 
@@ -108,6 +127,7 @@ make dmg UNIVERSAL=1    # build a universal disk image in build/
 | `Sources/Linkhop/Settings.swift` | The Settings window |
 | `Sources/Linkhop/Config.swift` | Rules, config file, and log |
 | `scripts/make-icon.swift` | Draws the app icon (`make icon`) |
+| `scripts/screenshots/` | Renders the README images from the real picker and settings views (`make screenshots`) |
 
 ## Releasing
 
